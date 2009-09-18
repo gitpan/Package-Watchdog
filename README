@@ -1,0 +1,105 @@
+NAME
+    Package::Watchdog - Forbid subs in one package from accessing subs in
+    another package, directly or otherwise.
+
+DESCRIPTION
+    This package provides a function that allows you to 'watch' methods in a
+    package to ensure they do not access methods in another package. The
+    watch endures until the function returns meaning functions caleld by
+    your package cannot access the forbidden package's subs either.
+
+    You can also generate warnings when access occurs as opposed to dying.
+    But perhapse the most useful feature is a custom reaction subroutine.
+
+SYNOPSYS
+    Don't let package My::Package access subs in Fake::Package (die if it
+    tries)
+
+        add_watchdog( watch => 'My::Package', forbid => 'Fake::Package' );
+
+    Warn instead
+
+        add_watchdog( watch => 'My::Package', forbid => 'Fake::Package', warn => 1 );
+
+    Handle is a custom way
+
+        add_watchdog( watch => 'My::Package', forbid => 'Fake::Package', react => sub { ... } );
+
+    See REACT below for more details on the REACT sub.
+
+    Watch only specific subs
+
+        add_watchdog( watch => 'My::Package', forbid => 'Fake::Package', watch_subs => [ 'suba', 'subb' ] );
+
+    Forbid only specific subs
+
+        add_watchdog( watch => 'My::Package', forbid => 'Fake::Package', forbid_subs => [ 'suba', 'subb' ] );
+
+REACT SUBS
+    Here is an example of a reaction that dies when the watched sub is
+    called with no parameters, but continues as normal when the watched sub
+    was called with a parameter.
+
+        react => sub {
+            my %params = @_;
+            if ( $params{ watch_params }->[0] ) {
+                return $params{ original_sub }->( @{ $params{ forbid_params }} )
+            }
+            die( 'reacted badly' );
+        }
+
+    %params contains the following:
+
+        {
+            watch => WATCHED PACKAGE NAME
+            watch_params => [ @_ for the watched sub ]
+            original_watch_sub => coderef for the original sub that was watched
+            watched_sub => name of the sub that was watched
+
+            forbid => FORBIDDEN PACKAGE NAME
+            forbid_params => [ @_ for the forbidden sub ]
+            original_sub => coderef for the original sub that was forbidden
+            forbid_sub => name of the sub that was forbidden
+
+            message => the typical watchdog die/warn message string
+        }
+
+Notes and Caveats
+    AUTOLOAD and similar
+        You cannot watch a sub until it exists. If the sub is an AUTOLOAD
+        function you must AUTOLOAD it first.
+
+        You can forbid a sub that does not exist, however a custom react sub
+        will not have a reference to the original in such a case.
+
+        You can forbid access to an inherited method. Will work just like
+        any other method. However calling the method on the parent class is
+        not forbidden.
+
+EXPORTED FUNCTIONS
+    add_watchdog( watch => 'My::Package', forbid => 'Their::Package', ... )
+        See the synopsis. This is the only automatically exported function.
+
+AUTHORS
+    Chad Granum chad@opensourcery.com
+
+COPYRIGHT
+    Copyright (C) 2009 OpenSourcery, LLC
+
+    Package-Watchdog is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by the
+    Free Software Foundation; either version 2 of the License, or (at your
+    option) any later version.
+
+    Package-Watchdog is distributed in the hope that it will be useful, but
+    WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+    Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+    Package-Watchdog is packaged with a copy of the GNU General Public
+    License. Please see docs/COPYING in this distribution.
+

@@ -4,8 +4,6 @@ use warnings;
 
 use vars qw/$tmp $one/;
 
-use Data::Dumper;
-
 use Test::More tests => 55;
 use Test::Exception;
 
@@ -182,7 +180,7 @@ $sub = gen_watched_sub(
     'fakesub',
     sub {
         is_deeply( [@_], [@params], "Got correct params" );
-        return Fake::Package::parent();
+        return Fake::Package->parent();
     },
     react => sub {
         my %params = @_;
@@ -194,10 +192,10 @@ $sub = gen_watched_sub(
 );
 
 is( Fake::Package::realsub(), 'realsub', "realsub works" );
-is( bless( {}, 'Fake::Package' )->parent, 'parent', "Parent works" );
+is( Fake::Package->parent, 'parent', "Parent works" );
 is_deeply( $sub->( @params ), ['reacted', 'parent' ], "reacted to restricted parent call" );
 is( Fake::Package::realsub(), 'realsub', "realsub still works" );
-is( bless( {}, 'Fake::Package' )->parent, 'parent', "Parent still works" );
+is( Fake::Package->parent, 'parent', "Parent still works" );
 
 delete $baseargs{ watched_sub };
 

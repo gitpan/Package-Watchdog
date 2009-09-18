@@ -101,7 +101,7 @@ use base 'Exporter';
 
 our @EXPORT = qw/add_watchdog/;
 our @EXPORT_OK = all_subs_in_package( __PACKAGE__ );
-our $VERSION = 0.01;
+our $VERSION = 0.02;
 
 =item add_watchdog( watch => 'My::Package', forbid => 'Their::Package', ... )
 
