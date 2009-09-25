@@ -7,7 +7,24 @@ inc/Module/Install/Metadata.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/Package/Watchdog.pm
+lib/Package/Watchdog/List.pm
+lib/Package/Watchdog/Sub.pm
+lib/Package/Watchdog/Sub/Forbidden.pm
+lib/Package/Watchdog/Sub/Watched.pm
+lib/Package/Watchdog/Tracker.pm
+lib/Package/Watchdog/Tracker/Forbid.pm
+lib/Package/Watchdog/Tracker/Watch.pm
+lib/Package/Watchdog/Util.pm
 Makefile.PL
 MANIFEST			This list of files
+META.yml
 README
-t/000-tests.t
+t/000-util.t
+t/010-list.t
+t/020-sub.t
+t/030-watched.t
+t/040-forbidden.t
+t/050-tracker.t
+t/060-watch.t
+t/070-forbid.t
+t/100-watchdog.t
