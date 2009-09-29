@@ -4,7 +4,6 @@ use warnings;
 
 use Test::More tests => 25;
 use Test::Exception;
-use Test::Warn;
 use Package::Watchdog::List;
 
 my $CLASS = 'Package::Watchdog::Tracker::Watch';
@@ -111,7 +110,14 @@ is(
     "Generated useful warning - leveled",
 );
 
-warnings_like { $one->warn({ forbidden => Fake::Forbidden->new, forbid => Fake::Forbid->new }) } [ qr/Watchdog warning: sub Forbidden::Package::ForbiddenSub was called from within Watched::Package::WatchedSub/ ], "warns properly";
+SKIP: {
+    eval <<'EOT' || skip "Test::Warn not installed", 1;
+    use Test::Warn;
+
+    warnings_like { $one->warn({ forbidden => Fake::Forbidden->new, forbid => Fake::Forbid->new }) } [ qr/Watchdog warning: sub Forbidden::Package::ForbiddenSub was called from within Watched::Package::WatchedSub/ ], "warns properly";
+
+EOT
+}
 
 my %params;
 

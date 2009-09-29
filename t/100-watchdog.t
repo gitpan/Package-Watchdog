@@ -4,7 +4,6 @@ use warnings;
 
 use Test::More tests => 28;
 use Test::Exception;
-use Test::Warn;
 use Package::Watchdog::List;
 
 my $CLASS = 'Package::Watchdog';
@@ -113,47 +112,54 @@ $one->watch( package => 'My::WatchA', name => 'watch a' )
     ->forbid( 'My::Package' ) #All subs
     ->forbid( 'Another::Package', [ 'a' ] ); #Specific sub
 
-warnings_like { My::WatchA::a() }
-    [
-        qr/Watchdog warning: sub My::Package::a was called from within My::WatchA::a - watch a/,
-        qr/Watchdog warning: sub My::Package::a was called from within My::WatchA::a - watch c/
-    ],
-    'Watched sub a';
+SKIP: {
+eval <<'EOT' || skip "Test::Warn not installed", 9;
+    use Test::Warn;
 
-warnings_like { My::WatchA::b() }
-    [ qr/Watchdog warning: sub My::Package::a was called from within My::WatchA::b - watch a/ ],
-    'Watched sub b';
+    warnings_like { My::WatchA::a() }
+        [
+            qr/Watchdog warning: sub My::Package::a was called from within My::WatchA::a - watch a/,
+            qr/Watchdog warning: sub My::Package::a was called from within My::WatchA::a - watch c/
+        ],
+        'Watched sub a';
 
-warnings_like { My::WatchA::c() }
-    [ qr/Watchdog warning: sub My::Package::a was called from within My::WatchA::c - watch a/ ],
-    'Watched sub c';
+    warnings_like { My::WatchA::b() }
+        [ qr/Watchdog warning: sub My::Package::a was called from within My::WatchA::b - watch a/ ],
+        'Watched sub b';
 
-warnings_like { My::WatchB::a() }
-    [ qr/Watchdog warning: sub My::Package::a was called from within My::WatchB::a - watch b/ ],
-    'Watched sub a';
+    warnings_like { My::WatchA::c() }
+        [ qr/Watchdog warning: sub My::Package::a was called from within My::WatchA::c - watch a/ ],
+        'Watched sub c';
 
-#Make sure 'all subs' pcisk up new subs
-*My::Package::d = sub { 'd' };
+    warnings_like { My::WatchB::a() }
+        [ qr/Watchdog warning: sub My::Package::a was called from within My::WatchB::a - watch b/ ],
+        'Watched sub a';
 
-warnings_like { My::WatchA::d() }
-    [ qr/Watchdog warning: sub My::Package::d was called from within My::WatchA::d - watch a/ ],
-    'Watched sub d - newly created forbid';
+    #Make sure 'all subs' pcisk up new subs
+    *My::Package::d = sub { 'd' };
 
-$one->kill;
+    warnings_like { My::WatchA::d() }
+        [ qr/Watchdog warning: sub My::Package::d was called from within My::WatchA::d - watch a/ ],
+        'Watched sub d - newly created forbid';
 
-warnings_like { My::WatchA::a() }
-    [],
-    'no warnings for sub a';
+    $one->kill;
 
-warnings_like { My::WatchA::b() }
-    [],
-    'no warnings for sub b';
+    warnings_like { My::WatchA::a() }
+        [],
+        'no warnings for sub a';
 
-warnings_like { My::WatchA::c() }
-    [],
-    'no warnings for sub c';
+    warnings_like { My::WatchA::b() }
+        [],
+        'no warnings for sub b';
 
-warnings_like { My::WatchB::a() }
-    [],
-    'no warnings for sub a';
+    warnings_like { My::WatchA::c() }
+        [],
+        'no warnings for sub c';
 
+    warnings_like { My::WatchB::a() }
+        [],
+        'no warnings for sub a';
+
+    1;
+EOT
+}
