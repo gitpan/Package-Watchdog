@@ -207,7 +207,7 @@ Unless otherwise specified methods all return the watchdog object and are chaina
 
 #}}}
 
-our $VERSION = 0.04;
+our $VERSION = 0.05;
 
 my @ACCESSORS = qw/react watches forbids/;
 build_accessors( @ACCESSORS );
