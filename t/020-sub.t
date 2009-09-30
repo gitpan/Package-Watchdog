@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 28;
+use Test::More tests => 30;
 use Test::Exception;
 use Package::Watchdog::Util;
 
@@ -89,3 +89,53 @@ ok( \&Test::Package::a != $original, "Still replaced" );
 $one->remove_tracker( $one->trackers->[0] );
 is_deeply( $one->trackers, [ ], "Correct Tracks" );
 ok( \&Test::Package::a == $original, "Restored" );
+
+{
+    package My::WantArray;
+    use strict;
+    use warnings;
+
+    sub what_we_want {
+        my $self = shift;
+        my $want = wantarray();
+        return split( '', 'Want Array' ) if $want;
+        return 'Scalar' if defined( $want );
+        return;
+    }
+
+    package My::Test::Want;
+    use strict;
+    use warnings;
+    use Package::Watchdog::Util;
+
+    use base 'Package::Watchdog::Sub';
+
+    our $RAN = 0;
+
+    sub new_sub {
+        my $self = shift;
+        return sub {
+            $RAN++;
+            my $want = wantarray();
+            return proper_return( $want, $self->original, @_ );
+        };
+    }
+}
+
+my $tmp = My::Test::Want->new( 'My::WantArray', 'what_we_want' );
+
+my @array = My::WantArray->what_we_want;
+
+is_deeply(
+    \@array,
+    [ split( '', 'Want Array' )],
+    'Wanted an array'
+);
+
+my $scalar = My::WantArray->what_we_want;
+
+is_deeply(
+    $scalar,
+    'Scalar',
+    'Wanted a scalar'
+);

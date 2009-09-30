@@ -55,7 +55,12 @@ sub new_sub {
 
         croak( "At least one watch with a die reaction has been triggered." ) if @dies;
 
-        return $self->original->( @_ );
+        my $want = wantarray();
+        my @out = proper_return( $want, $self->original, @_ );
+        return @out if $want;
+        return shift( @out ) if defined( $want );
+        return @out if @out > 1;
+        return shift( @out );
     };
 }
 

@@ -58,10 +58,11 @@ argument list. This method is called by new to construct the object.
 
 sub init {
     my $self = shift;
-    my ( $watched, $params ) = @_;
+    my ( $watched, $params, $override_protos ) = @_;
 
     $self->watched( $watched );
     $self->params( $params );
+    $self->override_protos( $override_protos );
 
     return $self;
 }
@@ -107,7 +108,8 @@ sub forbid_sub {
     my ( $package, $sub ) = @_;
 
     my $forbidden = Package::Watchdog::Sub::Forbidden->new( $package, $sub, $self );
-    push @{ $self->tracked } => $forbidden;
+
+    push @{ $self->tracked } => $forbidden if $forbidden;
 
     return $self;
 }

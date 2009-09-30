@@ -147,12 +147,29 @@ sub set_sub {
     $package = $package . '::' unless $package =~ m/::$/;
     no strict 'refs';
     no warnings 'redefine';
+    no warnings 'prototype';
     if ( $new ) {
         *{$package . $sub} = $new;
     }
     else {
         undef( &{$package . $sub});
     }
+}
+
+sub proper_return {
+    my ( $want, $sub, @params ) = @_;
+
+    if ( $want ) {
+        my @array = $sub->( @params );
+        return @array;
+    }
+    elsif( defined( $want )) {
+        my $scalar = $sub->( @params );
+        return $scalar;
+    }
+
+    $sub->( @params );
+    return;
 }
 
 1;

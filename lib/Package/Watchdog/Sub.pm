@@ -90,14 +90,16 @@ sub _new_sub {
     my $self = shift;
     my $new_sub = $self->new_sub;
     return sub {
-        my @return = ( eval { $new_sub->( @_ ) } );
+        my $want = wantarray();
+        my @return = eval { proper_return( $want, $new_sub, @_ )};
         if ( $@ ) {
             $self->restore();
             croak( $@ );
         }
-        return unless @return;
-        return $return[0] if @return == 1;
-        return @return;
+        return @return if $want;
+        return shift( @return ) if defined( $want );
+        return @return if @return > 1;
+        return shift( @return );
     }
 }
 
@@ -136,7 +138,13 @@ sub new {
                 $class
             ),
         );
-        $self->do_override;
+
+        if ( prototype( $package . '::' . $sub ) and !$tracker->override_protos ) {
+            warn "Cannot override $package\::$sub as it has a prototype";
+        }
+        else {
+            $self->do_override;
+        }
     }
 
     $self->add_tracker( $tracker );

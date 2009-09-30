@@ -2,6 +2,7 @@ package Package::Watchdog::Sub::Watched;
 use strict;
 use warnings;
 use Package::Watchdog::Tracker::Forbid;
+use Package::Watchdog::Util;
 use base 'Package::Watchdog::Sub';
 
 #{{{ POD
@@ -32,6 +33,7 @@ sub new_sub {
     my $self = shift;
 
     return sub {
+        my $want = wantarray();
         my $params = {
             watches => $self->trackers,
             original_watched => $self->original,
@@ -43,14 +45,15 @@ sub new_sub {
 
         my $forbid = Package::Watchdog::Tracker::Forbid->new( $self, $params );
 
-        my @out = ( eval { $self->original->( @_ ) });
+        my @out = eval { proper_return( $want, $self->original, @_ )};
 
         $forbid->untrack;
 
         die( $@ ) if $@;
-        return shift( @out ) if @out == 1;
-        return @out if @out;
-        return;
+        return @out if $want;
+        return shift( @out ) if defined( $want );
+        return @out if @out > 1;
+        return shift( @out );
     };
 }
 

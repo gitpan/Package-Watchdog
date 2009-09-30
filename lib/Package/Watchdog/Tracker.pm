@@ -37,7 +37,7 @@ List of the Package::Watchdog::Sub objects that are being tracked.
 
 #}}}
 
-my @ACCESSORS = qw/tracked/;
+my @ACCESSORS = qw/tracked override_protos/;
 build_accessors( @ACCESSORS );
 
 =item track()

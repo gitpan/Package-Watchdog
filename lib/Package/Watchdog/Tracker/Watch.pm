@@ -75,7 +75,7 @@ sub init {
     croak( "Param 'react' must be either 'die', 'warn', or a coderef." )
         unless !$react || ( grep { /^$react$/ } qw/warn die/ ) || ref $react eq 'CODE';
 
-    $self->$_( $params{ $_ } ) for @ACCESSORS, 'subs';
+    $self->$_( $params{ $_ } ) for @ACCESSORS, 'subs', 'override_protos';
     $self->subs( [ '*' ] ) unless $self->subs;
     $self->react( 'die' ) unless $self->react;
     $self->gen_name unless $self->name;
@@ -137,6 +137,7 @@ sub watch_sub {
     my $self = shift;
     my ( $sub ) = @_;
     my $watched = Package::Watchdog::Sub::Watched->new( $self->package, $sub, $self );
+    return $self unless $watched;
     push @{ $self->tracked } => $watched unless grep { $_ == $watched } @{ $self->tracked };
     return $self;
 }
@@ -193,9 +194,9 @@ sub do_react {
 
     $self->react->(
         @_,
+        %{ $forbid->params },
         watch => $self,
         watched => $forbid->watched,
-        watched_params => $forbid->params,
     );
     return $self;
 }

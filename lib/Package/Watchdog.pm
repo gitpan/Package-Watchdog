@@ -207,7 +207,7 @@ Unless otherwise specified methods all return the watchdog object and are chaina
 
 #}}}
 
-our $VERSION = 0.06;
+our $VERSION = 0.07;
 
 my @ACCESSORS = qw/react watches forbids/;
 build_accessors( @ACCESSORS );
@@ -268,8 +268,8 @@ be an arrayref.
 
 sub forbid {
     my $self = shift;
-    my ( $package, $subs ) = @_;
-    $self->forbids->push( $package, $subs );
+    my ( $package, $subs, $override_proto ) = @_;
+    $self->forbids->push( $package, $subs, $override_proto );
     return $self;
 }
 

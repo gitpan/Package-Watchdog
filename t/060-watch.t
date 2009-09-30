@@ -85,7 +85,7 @@ is( $one->name, 'My::Package[a,b]-[Package::A,Package::B,Package::C]=die', "Some
 
     sub new { bless( {}, shift (@_ ) ) }
     sub watched { Fake::Watched->new }
-    sub params {[ 'a' .. 'z' ]}
+    sub params {{watched_params => [ 'a' .. 'z' ]}}
 
     package Fake::Watched;
     use strict;
@@ -132,7 +132,8 @@ $one = $CLASS->new(
     react => sub { %params = @_ },
 );
 
-my $tmp = Fake::Forbid->new;
+my $tmp = Fake::Forbid->new();
+
 $one->do_react( forbid => $tmp, x => 'x', y => 'y' );
 
 is_deeply(
@@ -143,7 +144,7 @@ is_deeply(
         y => 'y',
         watch => $one,
         watched => $tmp->watched,
-        watched_params => $tmp->params,
+        watched_params => $tmp->params->{ watched_params },
     },
     "Proper params are passed to react sub"
 );

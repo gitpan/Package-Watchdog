@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 29;
+use Test::More tests => 30;
 use Data::Dumper;
 use vars qw/$CLASS/;
 
@@ -40,7 +40,7 @@ is_deeply(
 
 is_deeply(
     [ sort( get_all_subs( $CLASS )) ],
-    [ sort qw/ build_accessors expand_subs combine_subs get_all_subs copy_sub copy_subs set_sub /],
+    [ sort qw/ build_accessors expand_subs combine_subs get_all_subs copy_sub copy_subs set_sub proper_return /],
     "Got correct list of subs"
 );
 
