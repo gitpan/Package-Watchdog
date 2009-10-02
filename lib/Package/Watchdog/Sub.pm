@@ -227,7 +227,7 @@ itself.
 sub remove_tracker {
     my $self = shift;
     my ( $tracker ) = @_;
-    $self->trackers([ grep { $_ != $tracker } @{ $self->trackers }]);
+    $self->trackers([ grep { $_ and $tracker and $_ != $tracker } @{ $self->trackers }]);
     $self->restore() unless @{ $self->trackers };
     return $self;
 }

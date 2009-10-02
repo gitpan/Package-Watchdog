@@ -91,7 +91,7 @@ destroyed.
 
 sub untrack {
     my $self = shift;
-    $_->remove_tracker( $self ) for @{ $self->tracked };
+    $_->remove_tracker( $self ) for grep { $_ } @{ $self->tracked };
     $self->tracked( [] );
     return $self;
 }

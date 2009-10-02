@@ -207,7 +207,7 @@ Unless otherwise specified methods all return the watchdog object and are chaina
 
 #}}}
 
-our $VERSION = 0.07;
+our $VERSION = 0.08;
 
 my @ACCESSORS = qw/react watches forbids/;
 build_accessors( @ACCESSORS );
@@ -305,8 +305,8 @@ Will make the watchdog inefective, removes all watches and forbids.
 
 sub kill {
     my $self = shift;
-    $_->untrack for @{ $self->watches };
-    $self->forbids->clear;
+    $_->untrack for grep { $_ } @{ $self->watches };
+    $self->forbids->clear if $self->forbids;
     return $self;
 }
 
@@ -322,11 +322,7 @@ __END__
 
 =head1 AUTHORS
 
-=over 4
-
-=item Chad Granum L<chad@opensourcery.com>
-
-=back
+Chad Granum L<chad@opensourcery.com>
 
 =head1 COPYRIGHT
 

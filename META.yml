@@ -1,7 +1,7 @@
 ---
-abstract: ''
+abstract: 'Forbid subs in one package from accessing subs in another package, directly or otherwise.'
 author:
-  - '=over 4'
+  - 'Chad Granum L<chad@opensourcery.com>'
 build_requires:
   ExtUtils::MakeMaker: 6.42
   Test::Exception: 0
@@ -14,13 +14,15 @@ license: gpl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: 1.4
-name: package-watchdog
+module_name: Package::Watchdog
+name: Package-Watchdog
 no_index:
   directory:
     - inc
     - t
 requires:
   Carp: 0
+  perl: 5.8.0
 resources:
   license: http://opensource.org/licenses/gpl-license.php
-version: 0.07
+version: 0.08

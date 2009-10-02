@@ -3,11 +3,10 @@ use strict;
 use warnings;
 use inc::Module::Install;
 
-name 'package-watchdog';
-all_from 'lib/Package/Watchdog.pm';
+perl_version '5.008';
 license 'gpl';
+all_from 'lib/Package/Watchdog.pm';
 
-abstract '';
 
 requires (
     Carp => 0,
