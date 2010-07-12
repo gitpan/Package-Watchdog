@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 30;
+use Test::More;
 use Test::Exception;
 use Package::Watchdog::Util;
 
@@ -80,15 +80,6 @@ my $two = Test::Sub->new( 'Test::Package', 'a', ['TrackB'] );
 ok( \&Test::Package::a != $original, "Still replaced" );
 
 is( $one, $two, "Only one instance of a sub override" );
-is_deeply( $one->trackers, [ ['TrackA'], ['TrackB'] ], "Correct Tracks" );
-
-$one->remove_tracker( $one->trackers->[0] );
-is_deeply( $one->trackers, [ ['TrackB'] ], "Correct Tracks" );
-ok( \&Test::Package::a != $original, "Still replaced" );
-
-$one->remove_tracker( $one->trackers->[0] );
-is_deeply( $one->trackers, [ ], "Correct Tracks" );
-ok( \&Test::Package::a == $original, "Restored" );
 
 {
     package My::WantArray;
@@ -139,3 +130,5 @@ is_deeply(
     'Scalar',
     'Wanted a scalar'
 );
+
+done_testing;

@@ -7,7 +7,6 @@ inc/Module/Install/Metadata.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/Package/Watchdog.pm
-lib/Package/Watchdog/List.pm
 lib/Package/Watchdog/Sub.pm
 lib/Package/Watchdog/Sub/Forbidden.pm
 lib/Package/Watchdog/Sub/Watched.pm
@@ -20,7 +19,6 @@ MANIFEST			This list of files
 META.yml
 README
 t/000-util.t
-t/010-list.t
 t/020-sub.t
 t/030-watched.t
 t/040-forbidden.t

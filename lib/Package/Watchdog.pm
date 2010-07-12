@@ -2,7 +2,6 @@ package Package::Watchdog;
 use strict;
 use warnings;
 use Carp;
-use Package::Watchdog::List;
 use Package::Watchdog::Tracker::Watch;
 use Package::Watchdog::Util;
 
@@ -82,25 +81,6 @@ The following still work:
     My::Package::b();
     My::Package::c();
 
-This will die with a warning:
-
-    *My::Package::d = sub { 'd' };
-    My::WatchA::d();
-
-Package::Watchdog was smart enough to detect that a new sub was defined in
-My::Package. Since no subs were listed all will be included, event he new one.
-
-*CAVEAT* if we had defined the new sub in My::Package after calling
-My::WatchA::d then it will not be found in time to be forbidden. For example,
-this will not die or provide a warninig:
-
-    #Works fine :-(
-    *My::WatchA::d = sub {
-        *My::Package::d = sub { 'd' };
-        My::Package::d();
-    };
-    My::WatchA::d();
-
 You can make the watchdog bark, but not bite. If you create the watchdog with
 'warn' as a parameter then violations will generate warnings, but will not die.
 
@@ -147,7 +127,6 @@ The custom react sub will be passed the following:
         watch => Package::Watchdog::Tracker::Watch, # The watch that was triggered
         watched => Package::Watchdog::Sub::Watched, # The class that manages the watched sub that was called.
         watched_params => [ Params with which the watched sub was called ],
-        forbid => Package::Watchdog::Tracker::Forbid, # The class that manages the forbidden subs.
         forbidden => Package::Watchdog::Sub::Forbidden, # The class that manages the forbidden sub that was called.
         forbidden_params => [ Params with which the forbidden sub was called ],
     );
@@ -162,22 +141,6 @@ It is safe to die within your custom reaction. The forbidden sub will run normal
 
 When Package::Watchdog obtains a list of all subs in a package, inherited subs
 are not included.
-
-=item Subs defined after a watched sub is called.
-
-Package::Watchdog works by overriding watched subs in such a way that when
-called they override forbidden subs. Once the forbidden subs are overriden the
-original watched sub is called and allowed to continue as normal.
-
-The forbidden subs are all overriden at once the moment you call a watched sub.
-As a result new subs added to the forbidden package afterthe watched sub is
-called will not be forbidden.
-
-=item Subs redefined after a watched sub is called.
-
-When the watched sub exits all forbidden subs will be returned to their
-pre-watched state. If you override a sub manually inside a watched sub, your
-override will be reset when the watched sub returns.
 
 =back
 
@@ -195,6 +158,8 @@ documentation purposes. They are not for use by the user.
 
 =item forbids()
 
+=item stack()
+
 =back
 
 =head1 METHODS
@@ -207,9 +172,9 @@ Unless otherwise specified methods all return the watchdog object and are chaina
 
 #}}}
 
-our $VERSION = 0.08;
+our $VERSION = 0.09;
 
-my @ACCESSORS = qw/react watches forbids/;
+my @ACCESSORS = qw/react watches forbids stack/;
 build_accessors( @ACCESSORS );
 
 =item new( $reaction )
@@ -233,7 +198,8 @@ sub new {
         {
             react => $react || 'die',
             watches => [],
-            forbids => Package::Watchdog::List->new(),
+            forbids => [],
+            stack => [],
         },
         $class
     );
@@ -253,7 +219,7 @@ sub watch {
     my $watch = Package::Watchdog::Tracker::Watch->new(
         react => $self->react,
         @_,
-        forbid => $self->forbids,
+        stack => $self->stack,
     );
     push @{ $self->watches } => $watch;
     return $self;
@@ -268,8 +234,13 @@ be an arrayref.
 
 sub forbid {
     my $self = shift;
-    my ( $package, $subs, $override_proto ) = @_;
-    $self->forbids->push( $package, $subs, $override_proto );
+    my ( $package, $subs ) = @_;
+    my $forbid = Package::Watchdog::Tracker::Forbid->new(
+        package => $package,
+        stack   => $self->stack,
+        subs    => $subs || undef,
+    );
+    push @{ $self->forbids } => $forbid;
     return $self;
 }
 
@@ -305,8 +276,17 @@ Will make the watchdog inefective, removes all watches and forbids.
 
 sub kill {
     my $self = shift;
-    $_->untrack for grep { $_ } @{ $self->watches };
-    $self->forbids->clear if $self->forbids;
+
+    my %instances = %Package::Watchdog::Sub::INSTANCES;
+    for my $class ( keys %instances ) {
+        for my $package ( keys %{ $instances{$class}}) {
+            for my $sub( keys %{ $instances{$class}{$package}}) {
+                my $item = $instances{$class}{$package}{$sub};
+                $item->restore() if $item;
+            }
+        }
+    }
+
     return $self;
 }
 

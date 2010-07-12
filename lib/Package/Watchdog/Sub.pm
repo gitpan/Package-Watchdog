@@ -34,10 +34,6 @@ Name of the package the sub is in.
 
 Name of the sub being managed.
 
-=item trackers()
-
-List of the Package::Watchdog::Tracker objects that are tracking the sub.
-
 =back
 
 =head1 METHODS
@@ -48,7 +44,7 @@ List of the Package::Watchdog::Tracker objects that are tracking the sub.
 
 #}}}
 
-my @ACCESSORS = qw/package sub original trackers/;
+my @ACCESSORS = qw/package sub original tracker/;
 build_accessors( @ACCESSORS );
 
 =item _instance( $class, $package, $sub )
@@ -91,8 +87,9 @@ sub _new_sub {
     my $new_sub = $self->new_sub;
     return sub {
         my $want = wantarray();
-        my @return = eval { proper_return( $want, $new_sub, @_ )};
-        if ( $@ ) {
+        my @return;
+        my $live = eval { @return = proper_return( $want, $new_sub, @_ ); 1 };
+        unless( $live ) {
             $self->restore();
             croak( $@ );
         }
@@ -102,15 +99,6 @@ sub _new_sub {
         return shift( @return );
     }
 }
-
-=item init( $self, @params )
-
-Called by new() after object construction. Passed $self and extra parameters
-from new(). Should be overriden by a subclass for extar construction work.
-
-=cut
-
-sub init { 1 };
 
 =item $obj = $class->new( $package, $sub, $tracker, @params )
 
@@ -124,7 +112,8 @@ init() is called both for new instances and existing.
 
 sub new {
     my $class = shift;
-    my ( $package, $sub, $tracker, @params ) = @_;
+    my ( $package, $sub, $tracker ) = @_;
+    croak( 'no sub' ) unless $sub;
     my $self = $class->_instance( $package, $sub );
     unless ($self) {
         $self = $class->_instance(
@@ -132,23 +121,21 @@ sub new {
             $sub,
             bless(
                 {
-                    'package' => $package,
-                    'sub' => $sub,
+                    package => $package,
+                    sub     => $sub,
+                    tracker => $tracker,
                 },
                 $class
             ),
         );
 
-        if ( prototype( $package . '::' . $sub ) and !$tracker->override_protos ) {
+        if ( prototype( $package . '::' . $sub )) {
             warn "Cannot override $package\::$sub as it has a prototype";
         }
         else {
             $self->do_override;
         }
     }
-
-    $self->add_tracker( $tracker );
-    $self->init( @params );
 
     return $self;
 }
@@ -191,44 +178,6 @@ sub restore {
         $self->original,
     );
     (ref $self)->_instance( $self->package, $self->sub, undef );
-    return $self;
-}
-
-=item add_tracker( $tracker )
-
-Add a tracker to the list of trackers.
-
-=cut
-
-sub add_tracker {
-    my $self = shift;
-    my ( $tracker ) = @_;
-
-    $self->trackers( [] ) unless $self->trackers;
-    push( @{ $self->trackers }, $tracker ) 
-        unless grep { $_ and $tracker and $_ == $tracker } @{ $self->trackers };
-
-    return $self;
-};
-
-=item remove_tracker( $tracker )
-
-Remove a tracker from the list. Must pass in a reference to the tracker that
-should be removed.
-
-Instance will expire and restore original sub when all trackers have been
-removed.
-
-You should never need to call this yourself, it is usually called by a tracker
-itself.
-
-=cut
-
-sub remove_tracker {
-    my $self = shift;
-    my ( $tracker ) = @_;
-    $self->trackers([ grep { $_ and $tracker and $_ != $tracker } @{ $self->trackers }]);
-    $self->restore() unless @{ $self->trackers };
     return $self;
 }
 

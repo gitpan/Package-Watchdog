@@ -21,14 +21,6 @@ Base class for objects that track overriden subs.
 The following accessors methods are automatically generated using
 Package::Watchdog::Util::build_accessors().
 
-=over 4
-
-=item tracked()
-
-List of the Package::Watchdog::Sub objects that are being tracked.
-
-=back
-
 =head1 METHODS
 
 =over 4
@@ -37,16 +29,24 @@ List of the Package::Watchdog::Sub objects that are being tracked.
 
 #}}}
 
-my @ACCESSORS = qw/tracked override_protos/;
+my @ACCESSORS = qw/package stack/;
 build_accessors( @ACCESSORS );
 
 =item track()
 
-MUST be overriden by a subclass. Called by new to start tracking.
+Starts tracking the specified subs.
 
 =cut
 
-sub track { die("subclass " . (ref shift( @_ )) . " must override track()" ) }
+sub track {
+    my $self = shift;
+    my %seen;
+    for my $sub (@{ expand_subs( $self->package, $self->subs )}) {
+        next if $seen{$sub}++;
+        $self->track_sub( $sub )
+    }
+    return $self;
+}
 
 =item init( $self, @params )
 
@@ -68,38 +68,35 @@ runs track() to begin tracking subs..
 
 sub new {
     my $class = shift;
-    my @params = @_;
+    my %params = @_;
 
     my $self = bless({ tracked => [] }, $class );
 
-    $self->init( @params );
+    my ( $package, $stack, $subs ) = @params{(@ACCESSORS, 'subs')};
+    croak( "Must specify a package to track" )
+        unless $package;
+    croak( "Must provide a reference to the stack" )
+        unless $stack && ref( $stack ) eq 'ARRAY';
+
+    $self->$_( $params{ $_ } ) for (@ACCESSORS, 'subs');
+    $self->subs( [ '*' ] ) unless $self->subs;
+
+    $self->init( %params );
     $self->track();
 
     return $self;
 }
 
-=item untrack()
+=item subs()
 
-Removes the tracker from all the subs being tracked. This will restore all
-tracked subs that are not also tracked by another tracker. Also removes all
-references to tracked subs.
-
-Automatically called when the object falls out of scope or is otherwise
-destroyed.
+Returns the list of all subs that should be watched.
 
 =cut
 
-sub untrack {
+sub subs {
     my $self = shift;
-    $_->remove_tracker( $self ) for grep { $_ } @{ $self->tracked };
-    $self->tracked( [] );
-    return $self;
-}
-
-sub DESTROY {
-    my $self = shift;
-    return unless $self and ref $self and ref $self eq __PACKAGE__;
-    $self->untrack() if @{ $self->tracked };
+    $self->{ subs } = shift( @_ ) if @_;
+    return expand_subs( $self->package, $self->{ subs } );
 }
 
 1;

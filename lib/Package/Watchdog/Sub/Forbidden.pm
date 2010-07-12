@@ -33,27 +33,31 @@ sub new_sub {
     my $self = shift;
 
     return sub {
-        my @sets;
-        for my $forbid ( @{ $self->trackers } ) {
-            for my $watch ( @{ $forbid->watched->trackers }) {
-                push @sets => {
-                    forbid => $forbid,
-                    watch => $watch,
-                    forbidden => $self,
-                    forbidden_params => [ @_ ],
-                };
+        my %seen;
+        for my $call ( @{ $self->tracker->stack }) {
+            my ( $watch, $watch_context ) = @$call;
+
+            my $react = $watch->react;
+            next if $seen{ $react }++;
+            my $fatal = $react eq 'die' ? 'fatal' : undef;
+
+            my $context = {
+                watch => $watch,
+                %$watch_context,
+                forbidden => $self,
+                forbidden_params => [ @_ ],
+                forbid => $self->tracker,
+            };
+
+            if ( ref( $react )) {
+                $watch->do_react( %$context );
+            }
+            else {
+                $watch->warn( $context, $fatal );
+                croak( 'At least one watch with a die reaction has been triggered.' )
+                    if $fatal;
             }
         }
-
-        my @warns = grep { $_->{watch}->react eq 'warn' } @sets;
-        my @dies = grep { $_->{watch}->react eq 'die' } @sets;
-        my @reacts = grep { ref( $_->{watch}->react )} @sets;
-        $_->{watch}->warn( $_ ) for @warns;
-        $_->{watch}->warn( $_ , 'fatal' ) for @dies;
-
-        $_->{ watch }->do_react( %$_ ) for @reacts;
-
-        croak( "At least one watch with a die reaction has been triggered." ) if @dies;
 
         my $want = wantarray();
         my @out = proper_return( $want, $self->original, @_ );

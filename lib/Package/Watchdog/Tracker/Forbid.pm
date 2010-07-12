@@ -46,71 +46,19 @@ existance.
 
 #}}}
 
-my @ACCESSORS = qw/params watched/;
+my @ACCESSORS = qw/package subs stack/;
 build_accessors( @ACCESSORS );
 
-=item init( $self, $watched, $params )
-
-new() should be called with $watched and $params appended to the end of the
-argument list. This method is called by new to construct the object.
-
-=cut
-
-sub init {
-    my $self = shift;
-    my ( $watched, $params, $override_protos ) = @_;
-
-    $self->watched( $watched );
-    $self->params( $params );
-    $self->override_protos( $override_protos );
-
-    return $self;
-}
-
-=item track()
-
-Forbid all the subs that should be forbidden according to the list in
-$self->watched.
-
-=cut
-
-sub track {
-    my $self = shift;
-
-    my $forbid = Package::Watchdog::List->new();
-    $forbid->merge_in( $_->forbid ) for @{ $self->watched->trackers };
-    $self->forbid_subs( $_, $forbid->subs( $_ )) for $forbid->packages();
-
-    return $self;
-}
-
-=item forbid_subs( $package, $subs )
-
-Forbid the specified subs in the specified package.
-
-=cut
-
-sub forbid_subs {
-    my $self = shift;
-    my ( $package, $subs ) = @_;
-    $self->forbid_sub( $package, $_ ) for @$subs;
-    return $self;
-}
-
-=item forbid_sub( $package, $sub )
+=item track_sub( $package, $sub )
 
 Forbid the specified sub in the specified package.
 
 =cut
 
-sub forbid_sub {
+sub track_sub {
     my $self = shift;
-    my ( $package, $sub ) = @_;
-
-    my $forbidden = Package::Watchdog::Sub::Forbidden->new( $package, $sub, $self );
-
-    push @{ $self->tracked } => $forbidden if $forbidden;
-
+    my ( $sub ) = @_;
+    my $forbidden = Package::Watchdog::Sub::Forbidden->new( $self->package, $sub, $self );
     return $self;
 }
 

@@ -2,11 +2,12 @@
 use strict;
 use warnings;
 
-use Test::More tests => 56;
+use Test::More;
 use Test::Exception;
 use Package::Watchdog::Util;
 
 my $CLASS = 'Package::Watchdog::Sub::Forbidden';
+our @STACK;
 
 {
     package Test::Package;
@@ -21,10 +22,10 @@ my $CLASS = 'Package::Watchdog::Sub::Forbidden';
     sub new { bless( {}, shift (@_ ) ) }
     sub watched { Test::Watched->new }
     sub params { ['watched_params'] }
+    sub stack { \@main::STACK }
 
     package Test::Watched;
     sub new { bless( {}, shift (@_ ) ) }
-    sub trackers {[Test::Watch->new, Test::Watch->new]};
 
     package Test::Watch;
     our %RAN;
@@ -36,16 +37,16 @@ my $CLASS = 'Package::Watchdog::Sub::Forbidden';
     }
     sub id { shift->{ id } }
     sub warn { $RAN{ shift->id }{ 'warn' } = [@_] }
-    sub do_react { 
+    sub do_react {
         my $self = shift;
         $REACT->();
         $RAN{ $self->id }{ 'do_react' } = { @_ };
     }
     sub react { $REACT }
+    sub stack { \@main::STACK }
 }
 
 use_ok $CLASS;
-can_ok( $CLASS, 'trackers' );
 
 my ( $one, $two );
 
@@ -56,50 +57,23 @@ $two = $CLASS->new( 'Test::Package', 'a', Test::Forbid->new );
 is( $one, $two, "Only one instance" );
 ok( \&Test::Package::a != $original, "Sub replaced" );
 
+push @STACK => [ Test::Watch->new(), { watched => Test::Watched->new } ];
 dies_ok { $one->new_sub->( 'forbidden_params' )} 'Die when there is a react with die';
-like( $@, qr/At least one watch with a die reaction has been triggered/, "correct death message" );
+like(
+    $@,
+    qr/At least one watch with a die reaction has been triggered/,
+    "correct death message"
+);
 
 is_deeply(
     \%Test::Watch::RAN,
     {
         1 => { warn => [
-            bless( { id => 1 }, 'Test::Watch'),
+            $STACK[0]->[0],
             {
-                forbid => Test::Watched->new,,
-                watch => bless( { id => 1 }, 'Test::Watch' ),
-                forbidden => $one,
-                forbidden_params => [ 'forbidden_params' ],
-            },
-            'fatal'
-        ]},
-
-        2 => { warn => [
-            bless( { id => 2 }, 'Test::Watch'),
-            {
-                forbid => Test::Watched->new,,
-                watch => bless( { id => 2 }, 'Test::Watch' ),
-                forbidden => $one,
-                forbidden_params => [ 'forbidden_params' ],
-            },
-            'fatal'
-        ]},
-
-        3 => { warn => [
-            bless( { id => 3 }, 'Test::Watch'),
-            {
-                forbid => Test::Watched->new,,
-                watch => bless( { id => 3 }, 'Test::Watch' ),
-                forbidden => $one,
-                forbidden_params => [ 'forbidden_params' ],
-            },
-            'fatal'
-        ]},
-
-        4 => { warn => [
-            bless( { id => 4 }, 'Test::Watch'),
-            {
-                forbid => Test::Watched->new,,
-                watch => bless( { id => 4 }, 'Test::Watch' ),
+                watch => $STACK[0]->[0],
+                watched => $STACK[0]->[1]->{ watched },
+                forbid => Test::Watched->new,
                 forbidden => $one,
                 forbidden_params => [ 'forbidden_params' ],
             },
@@ -116,44 +90,16 @@ lives_ok { $one->new_sub->( 'forbidden_params' )} 'Live without a die reaction';
 is_deeply(
     \%Test::Watch::RAN,
     {
-        5 => { warn => [
-            bless( { id => 5 }, 'Test::Watch'),
+        1 => { warn => [
+            $STACK[0]->[0],
             {
-                forbid => Test::Watched->new,,
-                watch => bless( { id => 5 }, 'Test::Watch' ),
+                watch => $STACK[0]->[0],
+                watched => $STACK[0]->[1]->{ watched },
+                forbid => Test::Watched->new,
                 forbidden => $one,
                 forbidden_params => [ 'forbidden_params' ],
             },
-        ]},
-
-        6 => { warn => [
-            bless( { id => 6 }, 'Test::Watch'),
-            {
-                forbid => Test::Watched->new,,
-                watch => bless( { id => 6 }, 'Test::Watch' ),
-                forbidden => $one,
-                forbidden_params => [ 'forbidden_params' ],
-            },
-        ]},
-
-        7 => { warn => [
-            bless( { id => 7 }, 'Test::Watch'),
-            {
-                forbid => Test::Watched->new,,
-                watch => bless( { id => 7 }, 'Test::Watch' ),
-                forbidden => $one,
-                forbidden_params => [ 'forbidden_params' ],
-            },
-        ]},
-
-        8 => { warn => [
-            bless( { id => 8 }, 'Test::Watch'),
-            {
-                forbid => Test::Watched->new,,
-                watch => bless( { id => 8 }, 'Test::Watch' ),
-                forbidden => $one,
-                forbidden_params => [ 'forbidden_params' ],
-            },
+            undef,
         ]},
     },
     "Correct stuff was run."
@@ -166,30 +112,10 @@ lives_ok { $one->new_sub->( 'forbidden_params' )} 'Live without a die reaction';
 is_deeply(
     \%Test::Watch::RAN,
     {
-        9 => { do_react => {
+        1 => { do_react => {
+            watch => $STACK[0]->[0],
+            watched => $STACK[0]->[1]->{ watched },
             forbid => Test::Watched->new,,
-            watch => bless( { id => 9 }, 'Test::Watch' ),
-            forbidden => $one,
-            forbidden_params => [ 'forbidden_params' ],
-        }},
-
-        10 => { do_react => {
-            forbid => Test::Watched->new,,
-            watch => bless( { id => 10 }, 'Test::Watch' ),
-            forbidden => $one,
-            forbidden_params => [ 'forbidden_params' ],
-        }},
-
-        11 => { do_react => {
-            forbid => Test::Watched->new,,
-            watch => bless( { id => 11 }, 'Test::Watch' ),
-            forbidden => $one,
-            forbidden_params => [ 'forbidden_params' ],
-        }},
-
-        12 => { do_react => {
-            forbid => Test::Watched->new,,
-            watch => bless( { id => 12 }, 'Test::Watch' ),
             forbidden => $one,
             forbidden_params => [ 'forbidden_params' ],
         }},
@@ -234,3 +160,5 @@ for $Test::Watch::REACT ( 'warn', sub { 1 } ) {
     dies_ok { &{ 'Test::Package::' . 'fatal' }( 'a', 'b' ) } "Fatal sub still dies on $Test::Watch::REACT";
     $one->restore;
 }
+
+done_testing;

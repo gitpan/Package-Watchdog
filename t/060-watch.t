@@ -2,9 +2,9 @@
 use strict;
 use warnings;
 
-use Test::More tests => 25;
+use Test::More;
 use Test::Exception;
-use Package::Watchdog::List;
+use Test::Warn;
 
 my $CLASS = 'Package::Watchdog::Tracker::Watch';
 
@@ -18,18 +18,18 @@ my $CLASS = 'Package::Watchdog::Tracker::Watch';
 }
 
 use_ok( $CLASS );
-can_ok( $CLASS, qw/subs package forbid react name/ );
+can_ok( $CLASS, qw/subs package react name/ );
 
-dies_ok { $CLASS->new() } 'Must specify a package to watch';
-like( $@, qr/Must specify a package to watch/, "Correct message" );
+dies_ok { $CLASS->new() } 'Must specify a package to track';
+like( $@, qr/Must specify a package to track/, "Correct message" );
 
-dies_ok { $CLASS->new( package => 'fake' ) } 'Must provide a Package\::Watchdog\::List for param \'forbid\'';
-like( $@, qr/Must provide a Package\::Watchdog\::List for param 'forbid'/, "Correct message" );
+dies_ok { $CLASS->new( package => 'fake' ) } 'Must provide a reference to the stack';
+like( $@, qr/Must provide a reference to the stack/, "Correct message" );
 
 dies_ok {
     $CLASS->new(
         package => 'fake',
-        forbid => Package::Watchdog::List->new(),
+        stack => [],
         react => 'xxx'
     )
 } 'Param \'react\' must be either \'die\', \'warn\', or a coderef.';
@@ -37,38 +37,21 @@ like( $@, qr/Param 'react' must be either 'die', 'warn', or a coderef./, "Correc
 
 my $one = $CLASS->new(
     package => 'Fake',
-    forbid => Package::Watchdog::List->new(),
+    stack   => [],
 );
 
 is( $one->react, 'die', "Default react is die" );
 is_deeply( $one->subs, [ 'a', 'b' ], "all subs for Fake package");
 is( $one->package, 'Fake', "Saved package" );
-isa_ok( $one->forbid, 'Package::Watchdog::List' );
-
-is( @{ $one->tracked }, 2, "Tracking 2 subs" );
-isa_ok( $_, 'Package::Watchdog::Sub::Watched' ) for @{ $one->tracked };
-
-is_deeply( $_->trackers, [ $one ], "Object is a tracker" ) for @{ $one->tracked };
-
-my $tracked = $one->tracked;
-
-$one->untrack;
-
-is( @{ $one->tracked }, 0, "Tracking 0 subs" );
-is_deeply( $_->trackers, [], "Object is not a tracker" ) for @$tracked;
 
 $one = $CLASS->new(
     package => 'My::Package',
     subs => [ 'a', 'b' ],
-    forbid => Package::Watchdog::List->new(
-        'Package::A' => [],
-        'Package::B' => [],
-        'Package::C' => [],
-    ),
+    stack => [],
     react => 'die',
 );
 
-is( $one->name, 'My::Package[a,b]-[Package::A,Package::B,Package::C]=die', "Somewhat useful name generated" );
+is( $one->name, 'My::Package[a,b]=die', "Somewhat useful name generated" );
 
 {
     package Fake::Forbidden;
@@ -97,39 +80,47 @@ is( $one->name, 'My::Package[a,b]-[Package::A,Package::B,Package::C]=die', "Some
 }
 
 is(
-    $one->gen_warning({ forbidden => Fake::Forbidden->new, forbid => Fake::Forbid->new }),
+    $one->gen_warning({
+        forbidden => Fake::Forbidden->new,
+        forbid => Fake::Forbid->new,
+        watched => Fake::Watched->new,
+    }),
     'Watchdog warning: sub Forbidden::Package::ForbiddenSub was called from within Watched::Package::WatchedSub - '
         . $one->name,
     "Generated useful warning",
 );
 
 is(
-    $one->gen_warning({ forbidden => Fake::Forbidden->new, forbid => Fake::Forbid->new }, 'fatal'),
+    $one->gen_warning(
+        {
+            forbidden => Fake::Forbidden->new,
+            forbid => Fake::Forbid->new,
+            watched => Fake::Watched->new,
+        },
+        'fatal'
+    ),
     'Watchdog fatal: sub Forbidden::Package::ForbiddenSub was called from within Watched::Package::WatchedSub - '
         . $one->name,
     "Generated useful warning - leveled",
 );
 
-SKIP: {
-    eval <<'EOT' || skip "Test::Warn not installed", 1;
-    use Test::Warn;
 
-    warnings_like { $one->warn({ forbidden => Fake::Forbidden->new, forbid => Fake::Forbid->new }) } [ qr/Watchdog warning: sub Forbidden::Package::ForbiddenSub was called from within Watched::Package::WatchedSub/ ], "warns properly";
-
-EOT
-}
+warnings_like {
+    $one->warn({
+        forbidden => Fake::Forbidden->new,
+        forbid => Fake::Forbid->new,
+        watched => Fake::Watched->new,
+    })
+}   [ qr/Watchdog warning: sub Forbidden::Package::ForbiddenSub was called from within Watched::Package::WatchedSub/ ],
+    "warns properly";
 
 my %params;
 
 $one = $CLASS->new(
     package => 'My::Package',
     subs => [ 'a', 'b' ],
-    forbid => Package::Watchdog::List->new(
-        'Package::A' => [],
-        'Package::B' => [],
-        'Package::C' => [],
-    ),
     react => sub { %params = @_ },
+    stack => [],
 );
 
 my $tmp = Fake::Forbid->new();
@@ -142,9 +133,8 @@ is_deeply(
         forbid => $tmp,
         x => 'x',
         y => 'y',
-        watch => $one,
-        watched => $tmp->watched,
-        watched_params => $tmp->params->{ watched_params },
     },
     "Proper params are passed to react sub"
 );
+
+done_testing;

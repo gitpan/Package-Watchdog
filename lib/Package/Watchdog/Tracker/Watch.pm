@@ -29,11 +29,6 @@ Package::Watchdog::Util::build_accessors().
 
 The package being watched.
 
-=item forbid()
-
-Package::Watchdog::List object containing a list of packages and subs that
-should be forbidden to the package.
-
 =item react()
 
 The default reaction when a forbidden sub is accessed.
@@ -52,14 +47,12 @@ The name of this watch.
 
 #}}}
 
-my @ACCESSORS = qw/package forbid react name/;
+my @ACCESSORS = qw/react name/;
 build_accessors( @ACCESSORS );
 
-=item init( package => $package, forbid => $forbid, react => $react, subs => $subs )
+=item init( package => $package, stack => \@stack, react => $react, subs => $subs )
 
 Called by new(), arguments should be appended to the end of the arguments used w/ new().
-
-package is the only mandatory argument, all others have defaults.
 
 =cut
 
@@ -67,33 +60,17 @@ sub init {
     my $self = shift;
     my %params = @_;
 
-    my ( $package, $forbid, $react, $subs ) = @params{@ACCESSORS};
-    croak( "Must specify a package to watch" )
-        unless $package;
-    croak( "Must provide a Package\::Watchdog\::List for param 'forbid'" )
-        unless $forbid and $forbid->isa( 'Package::Watchdog::List' );
+    my ( $react ) = @params{@ACCESSORS};
     croak( "Param 'react' must be either 'die', 'warn', or a coderef." )
         unless !$react || ( grep { /^$react$/ } qw/warn die/ ) || ref $react eq 'CODE';
 
-    $self->$_( $params{ $_ } ) for @ACCESSORS, 'subs', 'override_protos';
-    $self->subs( [ '*' ] ) unless $self->subs;
+    $self->$_( $params{ $_ } ) for @ACCESSORS;
     $self->react( 'die' ) unless $self->react;
     $self->gen_name unless $self->name;
 
     return $self;
 }
 
-=item subs()
-
-Returns the list of all subs that should be watched.
-
-=cut
-
-sub subs {
-    my $self = shift;
-    $self->{ subs } = shift( @_ ) if @_;
-    return expand_subs( $self->package, $self->{ subs } );
-}
 
 =item gen_name()
 
@@ -107,38 +84,22 @@ sub gen_name {
     my $name = $self->package
              . '['
                 . join(',', @{ $self->subs })
-             . ']-['
-                . join(',', $self->forbid->packages)
-             . "]=" . $self->react;
+             . ']=' . $self->react;
 
     $self->name( $name );
     return $self;
 }
 
-=item track()
-
-Starts watching the specified subs.
-
-=cut
-
-sub track {
-    my $self = shift;
-    $self->watch_sub( $_ ) for @{ expand_subs( $self->package, $self->subs )};
-    return $self;
-}
-
-=item watch_sub( $sub )
+=item track_sub( $sub )
 
 Watch a specific sub in the watch's package.
 
 =cut
 
-sub watch_sub {
+sub track_sub {
     my $self = shift;
     my ( $sub ) = @_;
     my $watched = Package::Watchdog::Sub::Watched->new( $self->package, $sub, $self );
-    return $self unless $watched;
-    push @{ $self->tracked } => $watched unless grep { $_ == $watched } @{ $self->tracked };
     return $self;
 }
 
@@ -152,15 +113,15 @@ Generates the warning message when a watch is violated.
 
 sub gen_warning {
     my $self = shift;
-    my ( $set, $level ) = @_;
-    my $forbidden = $set->{ forbidden };
-    my $watched = $set->{ forbid }->watched;
+    my ( $context, $level ) = @_;
+    my $forbidden = $context->{ forbidden };
+    my $watched = $context->{ watched };
 
     $level ||= 'warning';
 
     return "Watchdog $level: sub "
            . $forbidden->package . "::" . $forbidden->sub
-           . " was called from within " 
+           . " was called from within "
            . $watched->package . '::' . $watched->sub
            . " - " . $self->name;
 }
@@ -179,7 +140,7 @@ sub warn {
     return $self;
 }
 
-=item do_react( %params )
+=item do_react( \%context )
 
 FOR INTERNAL USE ONLY
 
@@ -189,15 +150,7 @@ Runs the custom reaction code when a watch is violated.
 
 sub do_react {
     my $self = shift;
-    my %params = @_;
-    my $forbid = $params{forbid};
-
-    $self->react->(
-        @_,
-        %{ $forbid->params },
-        watch => $self,
-        watched => $forbid->watched,
-    );
+    $self->react->( @_ );
     return $self;
 }
 

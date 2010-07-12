@@ -34,20 +34,14 @@ sub new_sub {
 
     return sub {
         my $want = wantarray();
-        my $params = {
-            watches => $self->trackers,
-            original_watched => $self->original,
+        my $context = {
             watched_params => [ @_ ],
             watched => $self,
-            watched_package => $self->package,
-            watched_sub => $self->sub,
         };
 
-        my $forbid = Package::Watchdog::Tracker::Forbid->new( $self, $params );
-
+        push @{ $self->tracker->stack } => [ $self->tracker, $context ];
         my @out = eval { proper_return( $want, $self->original, @_ )};
-
-        $forbid->untrack;
+        pop @{ $self->tracker->stack };
 
         die( $@ ) if $@;
         return @out if $want;
